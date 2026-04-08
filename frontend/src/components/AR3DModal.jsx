@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ModelViewer from './ModelViewer'
+import { API_BASE } from "./config"
 
 export default function AR3DModal({
   open,

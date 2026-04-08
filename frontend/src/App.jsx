@@ -1,3 +1,4 @@
+import { API_BASE } from "./config"
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
@@ -5,7 +6,7 @@ import ARStudio from './ARStudio'
 import Profile from './components/Profile'
 import DesignCard from './components/DesignCard'
 import ProfilePage from './components/ProfilePage'
-import { API_BASE } from "./config"
+
 
 // API base pointing at backend during development
 const API_BASE = 'https://interior-project-gjpx.onrender.com'
