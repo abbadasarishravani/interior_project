@@ -9,7 +9,7 @@ import ProfilePage from './components/ProfilePage'
 
 
 // API base pointing at backend during development
-const API_BASE = 'https://interior-project-gjpx.onrender.com'
+
 
 const STYLE_FILTERS = [
   'All',
