@@ -24,11 +24,16 @@ const devRoutes = require('./routes/dev')
 
 const app = express()
 
+const cors = require('cors')
+
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: [
+      'http://localhost:5173',
+      'https://interior-project-gold.vercel.app'
+    ],
     credentials: true,
-  }),
+  })
 )
 app.use(express.json())
 app.use(cookieParser())
