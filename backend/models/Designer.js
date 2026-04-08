@@ -12,6 +12,7 @@ const designerSchema = new mongoose.Schema(
     startingPrice: String,
     description: String,
     rating: { type: Number, default: 0 },
+    reviews: { type: Number, default: 0 },
     projects: { type: Number, default: 0 },
     badge: String,
     image: String,
@@ -23,6 +24,15 @@ const designerSchema = new mongoose.Schema(
   },
   { timestamps: true },
 )
+
+designerSchema.methods.updateRating = async function () {
+  const Review = mongoose.model('Review')
+  const reviews = await Review.find({ design: this._id })
+  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0)
+  this.rating = reviews.length ? totalRating / reviews.length : 0
+  this.reviews = reviews.length
+  await this.save()
+}
 
 module.exports = mongoose.model('Designer', designerSchema)
 

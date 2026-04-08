@@ -1,6 +1,6 @@
 const { verifyToken } = require('../utils/jwt')
 
-function auth(required = true) {
+function auth(required = true, roles = []) {
   return (req, res, next) => {
     // Extract token from Authorization header (ONLY source of truth)
     let token = null
@@ -27,7 +27,11 @@ function auth(required = true) {
     try {
       const payload = verifyToken(token)
       req.user = payload
-      console.log(`[Auth] ✓ Token verified for user ${payload.id}`)
+
+      if (roles.length && !roles.includes(payload.role)) {
+        return res.status(403).json({ message: 'Access denied' })
+      }
+
       return next()
     } catch (err) {
       console.error(`[Auth] ✗ Token verification failed: ${err.message}`)

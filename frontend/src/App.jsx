@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import ARStudio from './ARStudio'
-import AR3DModal from './components/AR3DModal'
+import Profile from './components/Profile'
+import DesignCard from './components/DesignCard'
+import ProfilePage from './components/ProfilePage'
+import { API_BASE } from "./config"
 
 // API base pointing at backend during development
-const API_BASE = 'http://localhost:4000'
+const API_BASE = 'https://interior-project-gjpx.onrender.com'
 
 const STYLE_FILTERS = [
   'All',
@@ -29,6 +33,11 @@ const SPACES = [
 ]
 
 function App() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const isSearchPage = location.pathname === '/designers'
+  const isProfilePage = location.pathname === '/profile'
+
   const [activeSection, setActiveSection] = useState('home')
   const [selectedStyle, setSelectedStyle] = useState('All')
   const [budget, setBudget] = useState(60000)
@@ -88,8 +97,7 @@ function App() {
     budgetRange: '',
   })
   const [bookingDesigner, setBookingDesigner] = useState(null)
-  const [showAR3DModal, setShowAR3DModal] = useState(false)
-  const [likedDesigns, setLikedDesigns] = useState([])
+  const [showDesignerBuildProfile, setShowDesignerBuildProfile] = useState(false)
   const [authToken, setAuthToken] = useState(() => {
     // Load token from localStorage on mount
     return localStorage.getItem('ic_token') || null
@@ -205,6 +213,26 @@ function App() {
 
     return list
   }, [designers, aiMatch, minBudgetFilter, maxBudgetFilter])
+
+  const selectedDesignerPortfolioDesigns = useMemo(() => {
+    if (!selectedDesigner) return []
+    const designerId = selectedDesigner._id || selectedDesigner.id
+    const images = Array.isArray(selectedDesigner.portfolioImages)
+      ? selectedDesigner.portfolioImages
+      : []
+
+    return images.map((url, idx) => ({
+      // Unique id for "liked designs" storage UI.
+      likeId: `${designerId}-${idx}`,
+      title: `Portfolio ${idx + 1}`,
+      categories: ['Portfolio'],
+      assets: url ? [{ url }] : [],
+      // Reviews are tied to the designer (not the card).
+      reviewTargetId: designerId,
+      // Only allow/show reviews UI on the dedicated Search Designers route.
+      showReviews: isSearchPage,
+    }))
+  }, [selectedDesigner, isSearchPage])
 
   const openProfile = async (designer) => {
     try {
@@ -600,17 +628,11 @@ function App() {
       }
     }
     
-    // For customers, show home page first. For designers, show their dashboard.
-    if (loggedInUser?.role === 'customer') {
-      setActiveSection('home')
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }, 100)
-    } else if (loggedInUser?.role === 'designer') {
-      setTimeout(() => {
-        scrollToSection('designer-dashboard')
-      }, 300)
-    }
+    // After login, show the main website/home content.
+    setActiveSection('home')
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
   }
 
   const saveDesignerProfile = async () => {
@@ -708,6 +730,7 @@ function App() {
       setAuthToken(null)
       setUser(null)
       setDesignerProfile(null)
+      setShowDesignerBuildProfile(false)
       setDesignerForm({
         displayName: '',
         location: '',
@@ -727,6 +750,12 @@ function App() {
     }
   }
 
+  const openBuildProfile = () => {
+    if (user?.role !== 'designer') return
+    setShowDesignerBuildProfile(true)
+    setTimeout(() => scrollToSection('designer-dashboard'), 80)
+  }
+
   const scrollToSection = (id) => {
     setActiveSection(id)
     const el = document.getElementById(id)
@@ -741,7 +770,11 @@ function App() {
         <div className="ic-nav-inner">
           <div
             className="ic-logo"
-            onClick={() => scrollToSection('home')}
+            onClick={() => {
+              setSelectedDesigner(null)
+              navigate('/')
+              setTimeout(() => scrollToSection('home'), 80)
+            }}
             role="button"
           >
             <span className="ic-logo-mark">IC</span>
@@ -753,8 +786,13 @@ function App() {
                 {user.role === 'customer' && (
                   <button
                     type="button"
-                    onClick={() => scrollToSection('customer-dashboard')}
-                    className={activeSection === 'customer-dashboard' ? 'ic-nav-link active' : 'ic-nav-link'}
+                    onClick={() => {
+                      setSelectedDesigner(null)
+                      navigate('/designers')
+                    }}
+                    className={
+                      isSearchPage ? 'ic-nav-link active' : 'ic-nav-link'
+                    }
                   >
                     Search Designers
                   </button>
@@ -762,10 +800,10 @@ function App() {
                 {user.role === 'designer' && (
                   <button
                     type="button"
-                    onClick={() => scrollToSection('designer-dashboard')}
+                    onClick={() => openBuildProfile()}
                     className={activeSection === 'designer-dashboard' ? 'ic-nav-link active' : 'ic-nav-link'}
                   >
-                    My Profile
+                    Build Profile
                   </button>
                 )}
               </>
@@ -813,13 +851,34 @@ function App() {
             {user ? (
               <>
                 <span className="ic-user-name">{user.name}</span>
-                <button
-                  type="button"
-                  className="ic-btn ghost"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </button>
+                <Profile
+                  user={user}
+                  apiBase={API_BASE}
+                  getAuthHeaders={getAuthHeaders}
+                  onLogout={handleLogout}
+                  onGoToProfile={() => {
+                    setSelectedDesigner(null)
+                    setShowBookingModal(false)
+                    setBookingDesigner(null)
+                    navigate('/profile')
+                  }}
+                  onViewProfile={() => {
+                    if (user?.role !== 'designer') return
+                    if (!designerProfile) {
+                      openBuildProfile()
+                      return
+                    }
+                    setSelectedDesigner(designerProfile)
+                    setTimeout(() => scrollToSection('designer-profile'), 80)
+                  }}
+                  onMyDesigns={() => openBuildProfile()}
+                  preferences={{
+                    style: selectedStyle,
+                    space: spaceFilter,
+                    minBudget: minBudgetFilter,
+                    maxBudget: maxBudgetFilter,
+                  }}
+                />
               </>
             ) : (
               <button
@@ -850,8 +909,8 @@ function App() {
       </header>
 
       <main>
-        {/* Designer Dashboard - Show when designer is logged in */}
-        {user?.role === 'designer' && (
+        {/* Build Profile - on-demand for logged-in designers */}
+        {user?.role === 'designer' && showDesignerBuildProfile && (
           <section id="designer-dashboard" className="ic-section ic-designer-dashboard">
             <div className="ic-dashboard-container">
               <div className="ic-dashboard-header">
@@ -1137,11 +1196,46 @@ function App() {
           </section>
         )}
 
-        {/* Customer Dashboard - Show when customer is logged in */}
-        {user?.role === 'customer' && (
+        {/* Profile Page (route: /profile) */}
+        {isProfilePage && (
+          <ProfilePage
+            user={user}
+            apiBase={API_BASE}
+            getAuthHeaders={getAuthHeaders}
+            preferences={{
+              style: selectedStyle,
+              space: spaceFilter,
+              minBudget: minBudgetFilter,
+              maxBudget: maxBudgetFilter,
+            }}
+            designerProfile={designerProfile}
+            onBack={() => {
+              setSelectedDesigner(null)
+              setShowBookingModal(false)
+              setBookingDesigner(null)
+              navigate('/')
+              setTimeout(() => scrollToSection('home'), 80)
+            }}
+          />
+        )}
+
+        {/* Search Designers Page (route: /designers) */}
+        {isSearchPage && !isProfilePage && user?.role === 'customer' && (
           <section id="customer-dashboard" className="ic-section ic-customer-dashboard">
             <div className="ic-dashboard-container">
               <div className="ic-dashboard-header">
+                <button
+                  type="button"
+                  className="ic-btn ghost"
+                  onClick={() => {
+                    setSelectedDesigner(null)
+                    setShowBookingModal(false)
+                    setBookingDesigner(null)
+                    navigate('/')
+                  }}
+                >
+                  ← Back
+                </button>
                 <h1>Welcome back, {user.name}!</h1>
                 <p>Search for designers based on your requirements</p>
               </div>
@@ -1290,8 +1384,8 @@ function App() {
           </section>
         )}
 
-        {/* Regular Landing Page - Show when not logged in */}
-        {!user && (
+        {/* Main / Home (route: /) */}
+        {!isSearchPage && !isProfilePage && (
           <>
         <section id="home" className="ic-section ic-hero">
           <div className="ic-hero-grid">
@@ -1796,7 +1890,7 @@ function App() {
         )}
       </main>
 
-      {selectedDesigner && (
+      {selectedDesigner && !isProfilePage && (
         <section
           id="designer-profile"
           className="ic-section ic-profile-section"
@@ -1828,28 +1922,26 @@ function App() {
                 </div>
               </div>
 
-              <div className="ic-profile-portfolio">
-                {selectedDesigner.portfolioImages.map((url) => (
-                  <div key={url} className="ic-profile-shot">
-                    <img src={url} alt="Portfolio example" />
-                  </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '1rem',
+                }}
+              >
+                {selectedDesignerPortfolioDesigns.map((d) => (
+                  <DesignCard
+                    key={d.likeId}
+                    design={d}
+                    user={user}
+                    apiBase={API_BASE}
+                    getAuthHeaders={getAuthHeaders}
+                  />
                 ))}
               </div>
             </div>
 
             <aside className="ic-profile-sidebar">
-              <div className="ic-profile-card">
-                <h3>📱 AR / 3D View</h3>
-                <p>Visualize designer's projects in your space</p>
-                <button
-                  type="button"
-                  className="ic-btn primary ic-profile-btn"
-                  onClick={() => setShowAR3DModal(true)}
-                >
-                  🔍 Open AR / 3D View
-                </button>
-              </div>
-
               <div className="ic-profile-card">
                 <h3>Packages & pricing</h3>
                 <p className="ic-profile-price-main">
@@ -1913,13 +2005,6 @@ function App() {
           </div>
         </section>
       )}
-
-      <AR3DModal 
-        open={showAR3DModal} 
-        onClose={() => setShowAR3DModal(false)} 
-        designer={selectedDesigner} 
-        portfolioImages={selectedDesigner?.portfolioImages || []}
-      />
 
       <footer className="ic-footer">
         <div className="ic-footer-inner">

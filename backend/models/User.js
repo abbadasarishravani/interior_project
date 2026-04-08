@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['customer', 'designer'], default: 'customer' },
+    // Optional profile photo stored as a data URL string.
+    // (For a production app, prefer uploading to object storage and saving the URL.)
+    photo: { type: String, default: null },
     resetToken: { type: String, default: null },
     resetTokenExpiry: { type: Date, default: null },
   },

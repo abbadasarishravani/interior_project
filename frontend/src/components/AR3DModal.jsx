@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import ModelViewer from './ModelViewer'
 
-export default function AR3DModal({ open, onClose, designer, portfolioImages = [] }) {
+export default function AR3DModal({
+  open,
+  onClose,
+  designer,
+  portfolioImages = [],
+  initialDesignId = null,
+}) {
   const [step, setStep] = useState(1)
   const [roomType, setRoomType] = useState('Living room')
   const [length, setLength] = useState(4)
@@ -20,6 +26,81 @@ export default function AR3DModal({ open, onClose, designer, portfolioImages = [
       setShowImageModal(false)
     }
   }, [open])
+
+  // If the user opened the modal from a specific design card,
+  // jump directly to step 3 and enable the 3D viewer.
+  useEffect(() => {
+    if (!open) return
+    if (!initialDesignId) return
+
+    const portfolioDesigns =
+      portfolioImages && portfolioImages.length > 0
+        ? portfolioImages.map((imgUrl, idx) => ({
+            id: `portfolio-${idx}`,
+            title: `Design ${idx + 1}`,
+            categories: ['Portfolio'],
+            assets: [
+              {
+                url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+                iosUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz',
+              },
+            ],
+            imageUrl: imgUrl,
+          }))
+        : []
+
+    const demoDesigns = [
+      {
+        id: '1',
+        title: 'Modern Living Room',
+        categories: ['Modern', 'Living Room'],
+        assets: [
+          {
+            url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+            iosUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz',
+          },
+        ],
+        imageUrl:
+          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop',
+      },
+      {
+        id: '2',
+        title: 'Minimalist Bedroom',
+        categories: ['Minimal', 'Bedroom'],
+        assets: [
+          {
+            url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+            iosUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz',
+          },
+        ],
+        imageUrl:
+          'https://images.unsplash.com/photo-1540932239986-310128078e6c?w=500&h=400&fit=crop',
+      },
+      {
+        id: '3',
+        title: 'Contemporary Kitchen',
+        categories: ['Modern', 'Kitchen'],
+        assets: [
+          {
+            url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+            iosUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz',
+          },
+        ],
+        imageUrl:
+          'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=500&h=400&fit=crop',
+      },
+    ]
+
+    const designs = portfolioDesigns.length > 0 ? portfolioDesigns : demoDesigns
+    const found = designs.find((d) => d.id === initialDesignId) || null
+
+    if (found) {
+      setSelectedDesign(found)
+      setStep(3)
+      setShow3DView(true)
+      setShowImageModal(false)
+    }
+  }, [open, initialDesignId, portfolioImages])
 
   if (!open) return null
 

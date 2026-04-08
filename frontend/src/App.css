@@ -2378,3 +2378,244 @@
     border-top: 1px solid rgba(200, 200, 200, 0.2);
   }
 }
+
+/* PROFILE MENU (navbar) */
+
+.ic-profile-menu {
+  position: relative;
+}
+
+.ic-profile-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ic-profile-initials {
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  color: #111827;
+}
+
+.ic-profile-dropdown {
+  position: absolute;
+  right: 0;
+  margin-top: 0.6rem;
+  width: min(280px, 80vw);
+  border-radius: 1rem;
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+.ic-profile-summary {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+}
+
+.ic-profile-summary-name {
+  font-weight: 700;
+  color: #111827;
+}
+
+.ic-profile-summary-email,
+.ic-profile-summary-role {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.ic-profile-item {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.ic-profile-item:hover {
+  background: #f9fafb;
+}
+
+.ic-profile-item.danger {
+  color: #b91c1c;
+}
+
+.ic-profile-loggedout {
+  padding: 0.9rem 1rem;
+  font-size: 0.86rem;
+  color: #6b7280;
+}
+
+/* MODAL (used for My Reviews) */
+
+.ic-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+}
+
+.ic-modal {
+  width: min(720px, 92vw);
+  max-height: 82vh;
+  overflow: hidden;
+  border-radius: 1.2rem;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(229, 231, 235, 0.9);
+}
+
+.ic-modal-head {
+  padding: 1rem 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+}
+
+.ic-modal-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.ic-modal-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  color: #9ca3af;
+}
+
+.ic-modal-close:hover {
+  color: #111827;
+}
+
+.ic-modal-body {
+  padding: 1rem 1.1rem;
+  overflow: auto;
+  max-height: calc(82vh - 56px);
+}
+
+.ic-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.ic-review-item {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  padding: 0.8rem 0.9rem;
+  background: #ffffff;
+}
+
+.ic-review-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.ic-review-meta {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.ic-review-comment {
+  margin-top: 0.35rem;
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.ic-review-date {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+/* DESIGN CARD review styling */
+
+.design-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.35rem 0 0.4rem;
+}
+
+.design-rating-text {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.ic-stars .on {
+  color: #f59e0b;
+}
+
+.ic-stars .off {
+  color: rgba(156, 163, 175, 0.55);
+}
+
+.design-reviews-empty,
+.design-review-hint {
+  margin-top: 0.5rem;
+  font-size: 0.86rem;
+  color: #6b7280;
+}
+
+.design-review-form {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.design-review-form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: #4b5563;
+}
+
+.design-review-form select,
+.design-review-form textarea {
+  border-radius: 0.8rem;
+  border: 1px solid rgba(209, 213, 219, 0.9);
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+}
+
+.design-review-form textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.design-review-form button {
+  border-radius: 0.9rem;
+  border: none;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.design-review-form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

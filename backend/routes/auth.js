@@ -1,6 +1,7 @@
 const express = require('express')
 const crypto = require('crypto')
 const User = require('../models/User')
+const auth = require('../middleware/auth')
 const { createToken, verifyToken } = require('../utils/jwt')
 
 const router = express.Router()
@@ -99,10 +100,59 @@ router.get('/me', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' })
     }
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } })
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photo: user.photo || null,
+      },
+    })
   } catch (err) {
     console.error('Auth /me error:', err.message)
     res.status(401).json({ message: err.message || 'Invalid token' })
+  }
+})
+
+// Optional profile photo update (stored as a data URL string)
+router.post('/photo', auth(true), async (req, res) => {
+  try {
+    const { photo } = req.body || {}
+    const userId = req.user?.id
+    if (!userId) return res.status(401).json({ message: 'User ID missing from token' })
+
+    if (photo !== undefined && photo !== null && typeof photo !== 'string') {
+      return res.status(400).json({ message: 'photo must be a string' })
+    }
+
+    // Allow clearing the photo by sending null / empty string.
+    const trimmed = typeof photo === 'string' ? photo.trim() : ''
+    const nextPhoto = trimmed ? trimmed : null
+
+    // Very small safety check to avoid storing huge payloads.
+    if (nextPhoto && nextPhoto.length > 1_000_000) {
+      return res.status(400).json({ message: 'Photo is too large' })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) return res.status(404).json({ message: 'User not found' })
+
+    user.photo = nextPhoto
+    await user.save()
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photo: user.photo || null,
+      },
+    })
+  } catch (err) {
+    console.error('Auth /photo error:', err.message)
+    res.status(500).json({ message: 'Failed to update photo' })
   }
 })
 

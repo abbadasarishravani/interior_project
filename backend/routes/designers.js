@@ -1,5 +1,6 @@
 const express = require('express')
 const Designer = require('../models/Designer')
+const Review = require('../models/Review')
 const auth = require('../middleware/auth')
 
 const router = express.Router()
@@ -145,6 +146,70 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ message: 'Failed to load designer' })
+  }
+})
+
+// Fetch reviews for a design
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const reviews = await Review.find({ design: req.params.id })
+      .populate('user', 'name')
+      .sort({ createdAt: -1 })
+      .lean()
+    res.json(reviews)
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch reviews' })
+  }
+})
+
+// Add a review to a design
+router.post('/:id/reviews', auth(true), async (req, res) => {
+  try {
+    if (req.user?.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can add reviews' })
+    }
+
+    const rating = Number(req.body?.rating)
+    const comment = String(req.body?.comment || '').trim()
+
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be a number between 1 and 5' })
+    }
+    if (!comment) {
+      return res.status(400).json({ message: 'Comment is required' })
+    }
+
+    const existing = await Review.findOne({ user: req.user.id, design: req.params.id })
+    let review
+    let statusCode = 200
+
+    if (existing) {
+      existing.rating = rating
+      existing.comment = comment
+      review = await existing.save()
+    } else {
+      review = await Review.create({
+        rating,
+        comment,
+        user: req.user.id,
+        design: req.params.id,
+      })
+      statusCode = 201
+    }
+
+    // Update the design's average rating
+    const design = await Designer.findById(req.params.id)
+    if (design) {
+      await design.updateRating()
+    }
+
+    res.status(statusCode).json(review)
+  } catch (error) {
+    // Duplicate key (unique index user+design) can happen in race conditions
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: 'You have already reviewed this design' })
+    }
+    res.status(500).json({ message: 'Failed to add review' })
   }
 })
 

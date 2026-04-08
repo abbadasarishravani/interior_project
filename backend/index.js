@@ -19,6 +19,7 @@ const dnsPromises = dns.promises
 
 const authRoutes = require('./routes/auth')
 const designerRoutes = require('./routes/designers')
+const reviewRoutes = require('./routes/reviews')
 const devRoutes = require('./routes/dev')
 
 const app = express()
@@ -38,6 +39,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes)
 app.use('/api/designers', designerRoutes)
+app.use('/api/reviews', reviewRoutes)
 app.use('/api/dev', devRoutes)
 app.use('/api/test', require('./routes/test-auth'))
 
