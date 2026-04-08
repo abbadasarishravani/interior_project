@@ -1,4 +1,6 @@
-import { API_BASE } from "./config"
+
+// App.jsx
+import { API_BASE } from "./config";
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'

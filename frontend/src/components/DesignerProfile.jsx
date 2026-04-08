@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import ProjectGallery from './ProjectGallery'
-import { API_BASE } from "../config"
 export default function DesignerProfile({ designerId }) {
   const [designer, setDesigner] = useState(null)
   const [loading, setLoading] = useState(false)

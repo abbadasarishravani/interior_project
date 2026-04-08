@@ -1,1 +1,1 @@
-export const API_BASE = "https://interior-project-gjpx.onrender.com"
+export const API_BASE = "https://interior-project-gjpx.onrender.com";

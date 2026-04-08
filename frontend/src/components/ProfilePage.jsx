@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import {API_BASE} from "../config"
 
 function StarsText({ rating = 0, count = 0 }) {
   const r = Number(rating) || 0

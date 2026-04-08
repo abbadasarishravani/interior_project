@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { API_BASE } from "../config"
 
 const clampRating = (n) => Math.max(1, Math.min(5, Number(n) || 0))
 

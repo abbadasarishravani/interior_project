@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { API_BASE } from "../config"
 
 function useOutsideClick(ref, onOutside) {
   useEffect(() => {
