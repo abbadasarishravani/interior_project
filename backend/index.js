@@ -22,6 +22,7 @@ const designerRoutes = require('./routes/designers')
 const reviewRoutes = require('./routes/reviews')
 const devRoutes = require('./routes/dev')
 const bookingRoutes = require('./routes/bookings')
+const paymentRoutes = require('./routes/payments')
 
 const app = express()
 
@@ -43,6 +44,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/designers', designerRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/bookings', bookingRoutes)
+app.use('/api/payments', paymentRoutes)
 app.use('/api/dev', devRoutes)
 app.use('/api/test', require('./routes/test-auth'))
 

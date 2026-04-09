@@ -1,6 +1,6 @@
 
 // App.jsx
-import { API_BASE } from "./config";
+import { API_BASE, RAZORPAY_KEY_ID } from "./config";
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
@@ -89,6 +89,8 @@ function App() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [bookingType, setBookingType] = useState('online') // 'online' or 'offline'
+  const [bookingSubmitting, setBookingSubmitting] = useState(false)
+  const [bookingStatusMsg, setBookingStatusMsg] = useState('')
   const [bookingForm, setBookingForm] = useState({
     customerName: '',
     customerEmail: '',
@@ -115,6 +117,23 @@ function App() {
     }
     return headers
   }
+
+  const loadRazorpayScript = () =>
+    new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true)
+      const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')
+      if (existing) {
+        existing.addEventListener('load', () => resolve(true))
+        existing.addEventListener('error', () => resolve(false))
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.async = true
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.head.appendChild(script)
+    })
 
   // Check if user is already logged in on mount
   useEffect(() => {
@@ -402,6 +421,8 @@ function App() {
 
   const submitBooking = async () => {
     try {
+      if (bookingSubmitting) return
+      setBookingStatusMsg('')
       if (!bookingForm.customerPhone) {
         alert('Please enter your phone number')
         return
@@ -433,72 +454,139 @@ function App() {
       }
 
       if (bookingType === 'online') {
-        // Open Razorpay payment gateway
-        const script = document.createElement('script')
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-        script.async = true
-        script.onload = () => {
-          const bookingAmount = 5000 // Base booking fee in INR
-          const options = {
-            key: 'rzp_test_1DP5mmOlF5G0ab',
-            amount: bookingAmount * 100, // Amount in paise
-            currency: 'INR',
-            name: 'InteriorConnect Design Booking',
-            description: `Designer Consultation: ${bookingDesigner.displayName || bookingDesigner.name}`,
-            image: 'https://your-logo-url.png',
-            prefill: {
-              name: bookingForm.customerName,
-              email: bookingForm.customerEmail,
-              contact: bookingForm.customerPhone,
-            },
-            theme: {
-              color: '#2a9d8f',
-            },
-            handler: async function (response) {
-              try {
-                // Send booking request to backend with payment confirmation
-                const bookingPayload = {
-                  ...payload,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  status: 'confirmed',
-                }
-                const bookingRes = await fetch(`${API_BASE}/api/bookings/create`, {
-                  method: 'POST',
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify(bookingPayload),
-                })
-                if (bookingRes.ok) {
-                  alert(`✓ Booking confirmed!\n\nPayment ID: ${response.razorpay_payment_id}\n\nDesigner will contact you shortly at ${bookingForm.customerPhone}`)
-                  setShowBookingModal(false)
-                  setBookingForm({
-                    customerName: '',
-                    customerEmail: '',
-                    customerPhone: '',
-                    projectDescription: '',
-                    visitDate: '',
-                    visitTime: '',
-                    visitPlace: '',
-                    budgetRange: '',
-                  })
-                } else {
-                  alert('Booking could not be confirmed. Please contact support.')
-                }
-              } catch (err) {
-                alert('Error confirming booking: ' + err.message)
-              }
-            },
-            modal: {
-              ondismiss: function () {
-                console.log('Payment cancelled by user')
-              },
-            },
-          }
-          const rzp = new window.Razorpay(options)
-          rzp.open()
+        setBookingSubmitting(true)
+        setBookingStatusMsg('Preparing secure payment…')
+
+        const ok = await loadRazorpayScript()
+        if (!ok) {
+          setBookingSubmitting(false)
+          setBookingStatusMsg('')
+          alert('Unable to load payment gateway. Please check your connection and try again.')
+          return
         }
-        document.head.appendChild(script)
+
+        const bookingAmountInr = 5000 // Base booking fee in INR
+        const amountPaise = bookingAmountInr * 100
+
+        // 1) Create order on backend (secure)
+        const orderRes = await fetch(`${API_BASE}/api/payments/razorpay/order`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            amountPaise,
+            currency: 'INR',
+            receipt: `booking_${Date.now()}`,
+            notes: {
+              designerId: payload.designerId,
+              bookingType: payload.bookingType,
+            },
+          }),
+        })
+        const orderData = await orderRes.json().catch(() => ({}))
+        if (!orderRes.ok) {
+          setBookingSubmitting(false)
+          setBookingStatusMsg('')
+          throw new Error(orderData?.message || 'Failed to start payment')
+        }
+
+        setBookingStatusMsg('Opening payment…')
+
+        // 2) Open Razorpay checkout with order_id
+        const options = {
+          key: RAZORPAY_KEY_ID,
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          order_id: orderData.orderId,
+          name: 'InteriorConnect',
+          description: `Designer Consultation: ${bookingDesigner.displayName || bookingDesigner.name}`,
+          prefill: {
+            name: bookingForm.customerName,
+            email: bookingForm.customerEmail,
+            contact: bookingForm.customerPhone,
+          },
+          theme: { color: '#2a9d8f' },
+          handler: async function (response) {
+            try {
+              setBookingStatusMsg('Verifying payment…')
+
+              // 3) Verify signature on backend (secure)
+              const verifyRes = await fetch(`${API_BASE}/api/payments/razorpay/verify`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature,
+                }),
+              })
+              const verifyData = await verifyRes.json().catch(() => ({}))
+              if (!verifyRes.ok || !verifyData?.ok) {
+                throw new Error(verifyData?.message || 'Payment verification failed')
+              }
+
+              setBookingStatusMsg('Finalizing booking…')
+
+              // 4) Create booking with verified payment info
+              const bookingPayload = {
+                ...payload,
+                status: 'confirmed',
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+                amountPaise,
+                currency: 'INR',
+              }
+
+              const bookingRes = await fetch(`${API_BASE}/api/bookings/create`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(bookingPayload),
+              })
+              const bookingData = await bookingRes.json().catch(() => ({}))
+
+              if (!bookingRes.ok) {
+                throw new Error(bookingData?.message || 'Booking could not be confirmed. Please contact support.')
+              }
+
+              alert(
+                `✓ Booking confirmed!\n\nPayment ID: ${response.razorpay_payment_id}\n\nDesigner will contact you shortly at ${bookingForm.customerPhone}`,
+              )
+              setShowBookingModal(false)
+              setBookingForm({
+                customerName: '',
+                customerEmail: '',
+                customerPhone: '',
+                projectDescription: '',
+                visitDate: '',
+                visitTime: '',
+                visitPlace: '',
+                budgetRange: '',
+              })
+            } catch (err) {
+              console.error('Payment/booking failed:', err)
+              alert(err?.message || 'Payment failed. Please try again.')
+            } finally {
+              setBookingSubmitting(false)
+              setBookingStatusMsg('')
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setBookingSubmitting(false)
+              setBookingStatusMsg('')
+            },
+          },
+        }
+
+        const rzp = new window.Razorpay(options)
+        rzp.on('payment.failed', function () {
+          setBookingSubmitting(false)
+          setBookingStatusMsg('')
+        })
+        rzp.open()
       } else {
         // Offline booking
+        setBookingSubmitting(true)
         const offlinePayload = {
           ...payload,
           status: 'pending',
@@ -508,6 +596,7 @@ function App() {
           headers: getAuthHeaders(),
           body: JSON.stringify(offlinePayload),
         })
+        const offlineData = await bookingRes.json().catch(() => ({}))
         if (bookingRes.ok) {
           alert(
             '✓ Offline consultation scheduled!\n\nDesigner will contact you at ' +
@@ -530,22 +619,14 @@ function App() {
             budgetRange: '',
           })
         } else {
-          alert('Error scheduling consultation. Please try again.')
+          alert(offlineData?.message || 'Error scheduling consultation. Please try again.')
         }
+        setBookingSubmitting(false)
       }
 
-      return
-      setBookingForm({
-        customerName: '',
-        customerEmail: '',
-        customerPhone: '',
-        projectDescription: '',
-        visitDate: '',
-        visitTime: '',
-        visitPlace: '',
-        budgetRange: '',
-      })
     } catch (err) {
+      setBookingSubmitting(false)
+      setBookingStatusMsg('')
       alert('Error: ' + err.message)
     }
   }
@@ -2275,6 +2356,19 @@ function App() {
               </p>
             </div>
             <form className="ic-auth-form" onSubmit={(e) => {e.preventDefault(); submitBooking()}}>
+              {bookingStatusMsg ? (
+                <div
+                  className="ic-auth-message"
+                  style={{
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    color: '#065f46',
+                    fontWeight: 700,
+                  }}
+                >
+                  {bookingStatusMsg}
+                </div>
+              ) : null}
               <label>
                 Full Name
                 <input
@@ -2285,6 +2379,7 @@ function App() {
                   onChange={(e) =>
                     setBookingForm((f) => ({ ...f, customerName: e.target.value }))
                   }
+                  disabled={bookingSubmitting}
                 />
               </label>
               <label>
@@ -2297,6 +2392,7 @@ function App() {
                   onChange={(e) =>
                     setBookingForm((f) => ({ ...f, customerEmail: e.target.value }))
                   }
+                  disabled={bookingSubmitting}
                 />
               </label>
               <label>
@@ -2309,6 +2405,7 @@ function App() {
                   onChange={(e) =>
                     setBookingForm((f) => ({ ...f, customerPhone: e.target.value }))
                   }
+                  disabled={bookingSubmitting}
                 />
               </label>
               <label>
@@ -2320,6 +2417,7 @@ function App() {
                   onChange={(e) =>
                     setBookingForm((f) => ({ ...f, projectDescription: e.target.value }))
                   }
+                  disabled={bookingSubmitting}
                 />
               </label>
               {bookingType === 'offline' && (
@@ -2333,6 +2431,7 @@ function App() {
                       onChange={(e) =>
                         setBookingForm((f) => ({ ...f, visitDate: e.target.value }))
                       }
+                      disabled={bookingSubmitting}
                     />
                   </label>
                   <label>
@@ -2343,6 +2442,7 @@ function App() {
                       onChange={(e) =>
                         setBookingForm((f) => ({ ...f, visitTime: e.target.value }))
                       }
+                      disabled={bookingSubmitting}
                     />
                   </label>
                   <label>
@@ -2355,6 +2455,7 @@ function App() {
                       onChange={(e) =>
                         setBookingForm((f) => ({ ...f, visitPlace: e.target.value }))
                       }
+                      disabled={bookingSubmitting}
                     />
                   </label>
                 </>
@@ -2368,15 +2469,21 @@ function App() {
                   onChange={(e) =>
                     setBookingForm((f) => ({ ...f, budgetRange: e.target.value }))
                   }
+                  disabled={bookingSubmitting}
                 />
               </label>
-              <button type="submit" className="ic-btn primary ic-auth-submit">
-                {bookingType === 'online' ? 'Proceed to Payment' : 'Schedule Consultation'}
+              <button type="submit" className="ic-btn primary ic-auth-submit" disabled={bookingSubmitting}>
+                {bookingSubmitting ? 'Please wait…' : bookingType === 'online' ? 'Proceed to Payment' : 'Schedule Consultation'}
               </button>
               <button
                 type="button"
                 className="ic-btn ghost ic-auth-cancel"
-                onClick={() => setShowBookingModal(false)}
+                onClick={() => {
+                  if (bookingSubmitting) return
+                  setShowBookingModal(false)
+                  setBookingStatusMsg('')
+                }}
+                disabled={bookingSubmitting}
               >
                 Cancel
               </button>
